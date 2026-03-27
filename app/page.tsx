@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   LineChart,
   Line,
@@ -22,6 +23,12 @@ type IndicadorSaude = {
   taxa_internacao_por_mil: number;
   cobertura_esf: number;
 };
+
+// Importação dinâmica para evitar o erro 'window is not defined' no SSR
+const MapaEpiDinamico = dynamic(() => import("./components/MapaMaranhao"), {
+  ssr: false,
+  loading: () => <div className="h-96 w-full animate-pulse bg-gray-200 rounded-xl flex items-center justify-center">Carregando mapa cartográfico...</div>
+});
 
 export default function DashboardPage() {
   const [dados, setDados] = useState<IndicadorSaude[]>([]);
@@ -58,6 +65,7 @@ export default function DashboardPage() {
   const dadosSaoLuis = dados.filter((d) => d.municipio === "São Luís");
 
   return (
+    // ESTA É A DIV PAI PRINCIPAL
     <div className="min-h-screen bg-gray-50 p-8">
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">SIISP - Visão Geral</h1>
@@ -138,6 +146,15 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
       </div>
-    </div>
+
+      {/* Área do Mapa Cartográfico MOVIDA PARA DENTRO DA DIV PAI */}
+      <div className="mt-8 rounded-xl bg-white p-6 shadow-sm border border-gray-100">
+        <h2 className="mb-6 text-xl font-semibold text-gray-800">
+          Distribuição Espacial de Internações Sensíveis à AP
+        </h2>
+        <MapaEpiDinamico />
+      </div>
+
+    </div> // FIM DA DIV PAI PRINCIPAL
   );
 }
