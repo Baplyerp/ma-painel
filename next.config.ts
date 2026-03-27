@@ -1,5 +1,7 @@
-import withPWAInit from 'next-pwa';
 import type { NextConfig } from 'next';
+
+// @ts-expect-error: a biblioteca next-pwa não possui tipagem nativa atualizada
+import withPWAInit from 'next-pwa';
 
 const withPWA = withPWAInit({
   dest: 'public',
