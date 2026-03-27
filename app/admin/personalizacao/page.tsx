@@ -83,8 +83,7 @@ export default function PersonalizacaoAdminPage() {
                 type="text" 
                 value={nomeSistema}
                 onChange={(e) => setNomeSistema(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-800 focus:ring-2 outline-none transition-all"
-                style={{ focusRing: corPrimaria }}
+                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
               />
             </div>
 
