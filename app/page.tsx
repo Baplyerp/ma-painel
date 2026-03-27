@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 import {
   AreaChart,
   Area,
@@ -34,8 +34,8 @@ const MapaEpiDinamico = dynamic(() => import("./components/MapaMaranhao"), {
   ),
 });
 
-// Configuração da animação em cascata (Stagger)
-const containerVariants = {
+// Configuração da animação em cascata (Stagger) com tipagem explícita
+const containerVariants: Variants = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
@@ -43,7 +43,7 @@ const containerVariants = {
   },
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100 } },
 };
