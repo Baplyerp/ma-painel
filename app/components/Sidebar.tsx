@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, 
@@ -35,7 +36,6 @@ export default function Sidebar() {
         isExpanded ? "w-72" : "w-20"
       }`}
     >
-      {/* Botão de Expandir/Retrair */}
       <button 
         onClick={() => setIsExpanded(!isExpanded)}
         className="absolute -right-4 top-8 flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-500 transition-colors z-50"
@@ -43,19 +43,34 @@ export default function Sidebar() {
         {isExpanded ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
       </button>
 
-      {/* Cabeçalho da Sidebar */}
-      <div className="flex h-20 items-center justify-center border-b border-slate-800 px-4">
+      {/* Cabeçalho da Sidebar com a Identidade Visual Oficial */}
+      <div className="flex h-24 items-center justify-center border-b border-slate-800 px-4 py-4 transition-all">
         {isExpanded ? (
-          <h1 className="text-xl font-bold text-white tracking-wider">
-            SIISP <span className="text-blue-500">MA</span>
-          </h1>
+          <div className="relative w-full h-full flex items-center justify-center">
+             {/* Logo Horizontal quando expandido */}
+             <Image 
+               src="/logo-gov-horizontal.png" 
+               alt="Governo do Maranhão" 
+               fill
+               className="object-contain"
+               priority
+             />
+          </div>
         ) : (
-          <h1 className="text-xl font-bold text-blue-500">MA</h1>
+          <div className="relative w-10 h-10 flex items-center justify-center">
+             {/* Logo Vertical / Brasão quando reduzido */}
+             <Image 
+               src="/logo-gov-vertical.png" 
+               alt="Brasão Maranhão" 
+               fill
+               className="object-contain"
+               priority
+             />
+          </div>
         )}
       </div>
 
-      {/* Menu de Navegação */}
-      <nav className="flex-1 space-y-2 px-3 py-6">
+      <nav className="flex-1 space-y-2 px-3 py-6 overflow-y-auto">
         {menuItems.map((item) => {
           const isActive = pathname === item.path;
           return (
@@ -75,23 +90,22 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Zona de Perfil e Integração Gov.br */}
       <div className="border-t border-slate-800 p-4">
         <div className={`flex items-center gap-3 rounded-xl bg-slate-800/50 p-3 ${!isExpanded && "justify-center"}`}>
           <UserCircle size={36} className="text-slate-400" />
           {isExpanded && (
             <div className="flex-1 overflow-hidden">
-              <p className="truncate text-sm font-medium text-white">Jean Batista</p>
-              <p className="truncate text-xs text-blue-400">Analista de Políticas Públicas</p>
+              <p className="truncate text-sm font-medium text-white">Administrador</p>
+              <p className="truncate text-xs text-blue-400">Acesso Gov.br</p>
             </div>
           )}
         </div>
         
         {isExpanded && (
-          <button className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800 py-2 text-sm text-slate-300 hover:bg-slate-700 transition-colors">
+          <Link href="/admin/personalizacao" className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800 py-2 text-sm text-slate-300 hover:bg-slate-700 transition-colors">
             <Settings size={16} />
-            <span>Preferências</span>
-          </button>
+            <span>Configurações do Sistema</span>
+          </Link>
         )}
       </div>
     </div>
