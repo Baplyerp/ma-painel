@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
 import { motion, Variants } from "framer-motion";
 import {
   AreaChart,
@@ -23,7 +22,9 @@ import {
   Minimize2 
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { useMapStore } from "./store/useMapStore";
 import MapaBrasil from "./components/MapaBrasil";
+import MapaOmnisciente from "./components/MapaOmnisciente";
 
 type IndicadorSaude = {
   id: string;
@@ -33,16 +34,6 @@ type IndicadorSaude = {
   taxa_internacao_por_mil: number;
   cobertura_esf: number;
 };
-
-// Importação dinâmica do mapa cartográfico (Leaflet)
-const MapaEpiDinamico = dynamic(() => import("./components/MapaMaranhao"), {
-  ssr: false,
-  loading: () => (
-    <div className="h-full w-full animate-pulse bg-slate-100 rounded-2xl flex items-center justify-center border border-slate-200">
-      <div className="text-slate-400 font-medium tracking-wide">A renderizar malha cartográfica...</div>
-    </div>
-  ),
-});
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -60,6 +51,9 @@ const itemVariants: Variants = {
 export default function DashboardPage() {
   const [dados, setDados] = useState<IndicadorSaude[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Estado Global do Zustand (Cérebro do Mapa Omnisciente)
+  const { indicadoresDisponiveis, varX, varY, setVarX, setVarY } = useMapStore();
   
   const [filtroAno, setFiltroAno] = useState<string>("Todos");
   const [filtroMunicipio, setFiltroMunicipio] = useState<string>("Todos");
@@ -273,12 +267,43 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* Filtros Dinâmicos Bivariados (Só aparecem quando a visão é estadual) */}
+          {!visaoNacional && (
+            <div className="px-4 py-2 border-b border-slate-100 flex gap-4 bg-slate-50/50">
+              <div className="flex flex-col">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Variável 1 (Cor Base)</label>
+                <select 
+                  value={varX || ''} 
+                  onChange={(e) => setVarX(e.target.value)}
+                  className="text-sm bg-white border border-slate-200 rounded-md px-2 py-1 outline-none text-blue-600 font-medium"
+                >
+                  {indicadoresDisponiveis.map(ind => (
+                    <option key={ind.id} value={ind.id}>{ind.nome} ({ind.modulo})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Variável 2 (Cruzamento)</label>
+                <select 
+                  value={varY || ''} 
+                  onChange={(e) => setVarY(e.target.value || null)}
+                  className="text-sm bg-white border border-slate-200 rounded-md px-2 py-1 outline-none text-emerald-600 font-medium"
+                >
+                  <option value="">Nenhuma (Choropleth Simples)</option>
+                  {indicadoresDisponiveis.map(ind => (
+                    <option key={ind.id} value={ind.id}>{ind.nome} ({ind.modulo})</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
           {/* Área Dinâmica de Renderização dos Mapas */}
-          <div className="flex-1 rounded-xl overflow-hidden m-2 z-0 relative bg-slate-50">
+          <div className="flex-1 rounded-b-xl overflow-hidden z-0 relative bg-slate-50">
             {visaoNacional ? (
               <MapaBrasil onEstadoClick={() => setVisaoNacional(false)} />
             ) : (
-              <MapaEpiDinamico />
+              <MapaOmnisciente />
             )}
           </div>
         </motion.div>
