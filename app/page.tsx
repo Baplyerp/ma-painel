@@ -12,8 +12,18 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { Activity, TrendingDown, Stethoscope, Filter, Download } from "lucide-react";
+import { 
+  Activity, 
+  TrendingDown, 
+  Stethoscope, 
+  Filter, 
+  Download,
+  Globe, 
+  Maximize2, 
+  Minimize2 
+} from "lucide-react";
 import { supabase } from "../lib/supabase";
+import MapaBrasil from "./components/MapaBrasil";
 
 type IndicadorSaude = {
   id: string;
@@ -24,7 +34,7 @@ type IndicadorSaude = {
   cobertura_esf: number;
 };
 
-// Importação dinâmica do mapa cartográfico
+// Importação dinâmica do mapa cartográfico (Leaflet)
 const MapaEpiDinamico = dynamic(() => import("./components/MapaMaranhao"), {
   ssr: false,
   loading: () => (
@@ -51,21 +61,22 @@ export default function DashboardPage() {
   const [dados, setDados] = useState<IndicadorSaude[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Estados para os nossos Filtros Avançados
   const [filtroAno, setFiltroAno] = useState<string>("Todos");
   const [filtroMunicipio, setFiltroMunicipio] = useState<string>("Todos");
+
+  // Estados para o Mapa Interativo
+  const [visaoNacional, setVisaoNacional] = useState(true);
+  const [mapaExpandido, setMapaExpandido] = useState(false);
 
   useEffect(() => {
     const fetchDadosFiltrados = async () => {
       setLoading(true);
       try {
-        // Começamos a construir a consulta (query) base
         let query = supabase
           .from('indicadores_saude')
           .select('*')
           .order('ano', { ascending: true });
 
-        // Aplicamos os filtros dinamicamente se não estiverem em "Todos"
         if (filtroAno !== "Todos") {
           query = query.eq('ano', parseInt(filtroAno));
         }
@@ -83,7 +94,6 @@ export default function DashboardPage() {
       }
     };
     
-    // O useEffect será disparado novamente sempre que um destes filtros mudar
     fetchDadosFiltrados();
   }, [filtroAno, filtroMunicipio]);
 
@@ -115,6 +125,7 @@ export default function DashboardPage() {
             <option value="2023">2023</option>
             <option value="2024">2024</option>
             <option value="2025">2025</option>
+            <option value="2026">2026</option>
           </select>
 
           <select 
@@ -141,7 +152,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Grade Principal (Bento Grid) - Mantida idêntica para preservar a animação */}
+      {/* Grade Principal (Bento Grid) */}
       <motion.div 
         variants={containerVariants}
         initial="hidden"
@@ -222,14 +233,53 @@ export default function DashboardPage() {
           </div>
         </motion.div>
 
-        {/* Bloco 3: Mapa Cartográfico */}
-        <motion.div variants={itemVariants} className="md:col-span-4 rounded-2xl bg-white p-1 shadow-sm border border-slate-200 hover:shadow-md transition-shadow flex flex-col">
-          <div className="p-5 pb-2">
-            <h2 className="text-lg font-semibold text-slate-800">Distribuição Espacial</h2>
-            <p className="text-xs text-slate-500">Impacto cartográfico dinâmico</p>
+        {/* Bloco 3: Mapa Cartográfico Interativo (Drill-Down e Fullscreen) */}
+        <motion.div 
+          variants={itemVariants} 
+          className={`bg-white p-1 shadow-sm border border-slate-200 transition-all duration-500 flex flex-col ${
+            mapaExpandido 
+              ? "fixed inset-4 z-[100] rounded-2xl shadow-2xl" // Estilo Ecrã Inteiro
+              : "md:col-span-4 rounded-2xl hover:shadow-md h-[420px]" // Estilo Grid Normal
+          }`}
+        >
+          {/* Cabeçalho do Mapa */}
+          <div className="p-4 pb-2 flex justify-between items-center z-10 bg-white rounded-t-xl">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-800">
+                {visaoNacional ? "Visão Nacional" : "Inteligência Geográfica - MA"}
+              </h2>
+              <p className="text-xs text-slate-500">
+                {visaoNacional ? "Selecione o Estado para aprofundar" : "Distribuição de calor por município"}
+              </p>
+            </div>
+            
+            <div className="flex gap-2">
+              {!visaoNacional && (
+                <button 
+                  onClick={() => setVisaoNacional(true)}
+                  className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                  title="Voltar ao Mapa do Brasil"
+                >
+                  <Globe size={18} />
+                </button>
+              )}
+              <button 
+                onClick={() => setMapaExpandido(!mapaExpandido)}
+                className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                title={mapaExpandido ? "Reduzir" : "Expandir Mapa"}
+              >
+                {mapaExpandido ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+              </button>
+            </div>
           </div>
-          <div className="flex-1 rounded-xl overflow-hidden m-2 z-0 relative">
-            <MapaEpiDinamico />
+
+          {/* Área Dinâmica de Renderização dos Mapas */}
+          <div className="flex-1 rounded-xl overflow-hidden m-2 z-0 relative bg-slate-50">
+            {visaoNacional ? (
+              <MapaBrasil onEstadoClick={() => setVisaoNacional(false)} />
+            ) : (
+              <MapaEpiDinamico />
+            )}
           </div>
         </motion.div>
       </motion.div>
