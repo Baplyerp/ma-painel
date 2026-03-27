@@ -1,9 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Tipagem herdada da nossa API
+// Tipagem alinhada com os dados que vêm do Supabase
 type IndicadorSaude = {
   municipio: string;
   taxa_internacao_por_mil: number;
@@ -11,16 +12,44 @@ type IndicadorSaude = {
   lng: number;
 };
 
-// Dados georreferenciados simulados (adicionamos lat/lng aos nossos dados)
-const dadosGeo: IndicadorSaude[] = [
-  { municipio: "São Luís", taxa_internacao_por_mil: 12.8, lat: -2.5297, lng: -44.3028 },
-  { municipio: "Imperatriz", taxa_internacao_por_mil: 15.1, lat: -5.5265, lng: -47.4761 },
-  { municipio: "Caxias", taxa_internacao_por_mil: 18.4, lat: -4.8644, lng: -43.3550 },
-];
-
 export default function MapaMaranhao() {
+  const [dadosGeo, setDadosGeo] = useState<IndicadorSaude[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDadosGeograficos = async () => {
+      try {
+        const response = await fetch("/api/dados-econometricos");
+        const json = await response.json();
+        
+        // Filtramos para garantir que o mapa só tenta renderizar municípios que possuam coordenadas válidas
+        const dadosComCoordenadas = json.dados.filter(
+          (d: any) => d.lat != null && d.lng != null
+        );
+        
+        setDadosGeo(dadosComCoordenadas);
+      } catch (error) {
+        console.error("Erro ao buscar dados geográficos do Supabase:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDadosGeograficos();
+  }, []);
+
   // Coordenadas centrais do Maranhão
   const posicaoCentral: [number, number] = [-4.9609, -45.2744];
+
+  if (loading) {
+    return (
+      <div className="h-96 w-full flex items-center justify-center bg-gray-50 rounded-xl border border-gray-100">
+        <div className="animate-pulse text-gray-500 font-medium">
+          A carregar dados espaciais da base de dados...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-96 w-full rounded-xl overflow-hidden shadow-sm border border-gray-100 z-0 relative">
@@ -44,7 +73,7 @@ export default function MapaMaranhao() {
               fillColor: dado.taxa_internacao_por_mil > 15 ? '#ef4444' : '#f59e0b',
               fillOpacity: 0.7 
             }}
-            // O raio da bolha cresce conforme a taxa de internação
+            // O raio da bolha cresce dinamicamente com base nos dados reais
             radius={dado.taxa_internacao_por_mil * 1.5}
           >
             <Popup>
