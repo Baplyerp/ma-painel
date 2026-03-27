@@ -2,19 +2,19 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { motion } from "framer-motion";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend
 } from "recharts";
-import { Activity, TrendingDown, Stethoscope } from "lucide-react";
+import { Activity, TrendingDown, Stethoscope, Filter, Download } from "lucide-react";
+import { supabase } from "../lib/supabase";
 
-// Tipagem baseada na nossa API
 type IndicadorSaude = {
   id: string;
   municipio: string;
@@ -24,137 +24,175 @@ type IndicadorSaude = {
   cobertura_esf: number;
 };
 
-// Importação dinâmica para evitar o erro 'window is not defined' no SSR
+// Importação dinâmica do mapa (sem SSR)
 const MapaEpiDinamico = dynamic(() => import("./components/MapaMaranhao"), {
   ssr: false,
-  loading: () => <div className="h-96 w-full animate-pulse bg-gray-200 rounded-xl flex items-center justify-center">Carregando mapa cartográfico...</div>
+  loading: () => (
+    <div className="h-full w-full animate-pulse bg-slate-100 rounded-2xl flex items-center justify-center border border-slate-200">
+      <div className="text-slate-400 font-medium tracking-wide">Renderizando malha cartográfica...</div>
+    </div>
+  ),
 });
+
+// Configuração da animação em cascata (Stagger)
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.15 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100 } },
+};
 
 export default function DashboardPage() {
   const [dados, setDados] = useState<IndicadorSaude[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Buscando os dados da nossa API simulada
     const fetchDados = async () => {
       try {
-        const response = await fetch("/api/dados-econometricos");
-        const json = await response.json();
-        setDados(json.dados);
+        const { data, error } = await supabase
+          .from('indicadores_saude')
+          .select('*')
+          .order('ano', { ascending: true });
+
+        if (!error && data) setDados(data);
       } catch (error) {
-        console.error("Erro ao buscar dados:", error);
+        console.error("Erro:", error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchDados();
   }, []);
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
-        <div className="animate-pulse text-xl font-semibold text-blue-600">
-          Sincronizando dados epidemiológicos...
-        </div>
+      <div className="flex h-full items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
       </div>
     );
   }
 
-  // Filtrando apenas dados de São Luís para a demonstração do gráfico
-  const dadosSaoLuis = dados.filter((d) => d.municipio === "São Luís");
+  const dadosMaranhao = dados.filter((d) => d.municipio === "São Luís" || d.municipio === "Imperatriz" || d.municipio === "Caxias");
 
   return (
-    // ESTA É A DIV PAI PRINCIPAL
-    <div className="min-h-screen bg-gray-50 p-8">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">SIISP - Visão Geral</h1>
-        <p className="text-gray-500">Monitoramento de Inteligência em Saúde Pública</p>
-      </header>
+    <div className="min-h-screen bg-slate-50 p-8">
+      {/* Cabeçalho de Ações da Página */}
+      <motion.header 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4"
+      >
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Command Center</h1>
+          <p className="text-slate-500 mt-1">Sala de Situação da Saúde Estadual</p>
+        </div>
+        <div className="flex gap-3">
+          <button className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50 transition-all">
+            <Filter size={16} /> Filtros Avançados
+          </button>
+          <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-md hover:bg-blue-700 transition-all">
+            <Download size={16} /> Exportar Relatório
+          </button>
+        </div>
+      </motion.header>
 
-      {/* Cards de Resumo Rápido */}
-      <div className="mb-8 grid gap-6 md:grid-cols-3">
-        <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
+      {/* Grade Principal (Bento Grid) */}
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-1 md:grid-cols-12 gap-6"
+      >
+        {/* Bloco 1: KPIs Rápidos (Ocupam 3 colunas cada em telas grandes) */}
+        <motion.div variants={itemVariants} className="md:col-span-4 rounded-2xl bg-white p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
           <div className="flex items-center gap-4">
-            <div className="rounded-full bg-blue-100 p-3 text-blue-600">
-              <Activity size={24} />
+            <div className="rounded-xl bg-blue-50 text-blue-600 p-4">
+              <Activity size={28} />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-500">Total de Municípios Monitorados</p>
-              <p className="text-2xl font-bold text-gray-900">3</p>
+              <p className="text-sm font-medium text-slate-500">Alertas Epidemiológicos</p>
+              <p className="text-3xl font-bold text-slate-900 mt-1">02</p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
+        <motion.div variants={itemVariants} className="md:col-span-4 rounded-2xl bg-white p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
           <div className="flex items-center gap-4">
-            <div className="rounded-full bg-green-100 p-3 text-green-600">
-              <Stethoscope size={24} />
+            <div className="rounded-xl bg-emerald-50 text-emerald-600 p-4">
+              <Stethoscope size={28} />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-500">Cobertura Média ESF (2025)</p>
-              <p className="text-2xl font-bold text-gray-900">51%</p>
+              <p className="text-sm font-medium text-slate-500">Cobertura ESF Média</p>
+              <p className="text-3xl font-bold text-slate-900 mt-1">43.6%</p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
+        <motion.div variants={itemVariants} className="md:col-span-4 rounded-2xl bg-white p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
           <div className="flex items-center gap-4">
-            <div className="rounded-full bg-red-100 p-3 text-red-600">
-              <TrendingDown size={24} />
+            <div className="rounded-xl bg-amber-50 text-amber-600 p-4">
+              <TrendingDown size={28} />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-500">Tendência de Internações</p>
-              <p className="text-2xl font-bold text-gray-900">Em queda</p>
+              <p className="text-sm font-medium text-slate-500">Taxa de Internação (CSAP)</p>
+              <p className="text-3xl font-bold text-slate-900 mt-1">15.4</p>
             </div>
           </div>
-        </div>
-      </div>
+        </motion.div>
 
-      {/* Área do Gráfico */}
-      <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-        <h2 className="mb-6 text-xl font-semibold text-gray-800">
-          Correlação: Investimento x Internações (São Luís)
-        </h2>
-        <div className="h-96 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={dadosSaoLuis} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="ano" />
-              <YAxis yAxisId="left" orientation="left" stroke="#005baa" />
-              <YAxis yAxisId="right" orientation="right" stroke="#ef4444" />
-              <Tooltip />
-              <Legend />
-              <Line
-                yAxisId="left"
-                type="monotone"
-                dataKey="investimento_ab_per_capita"
-                name="Investimento Per Capita (R$)"
-                stroke="#005baa"
-                strokeWidth={3}
-                activeDot={{ r: 8 }}
-              />
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="taxa_internacao_por_mil"
-                name="Internações (por mil hab.)"
-                stroke="#ef4444"
-                strokeWidth={3}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+        {/* Bloco 2: Gráfico Principal de Área (Ocupa 8 colunas) */}
+        <motion.div variants={itemVariants} className="md:col-span-8 rounded-2xl bg-white p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+          <div className="mb-6 flex justify-between items-center">
+            <h2 className="text-lg font-semibold text-slate-800">Investimento vs. Internações Sensíveis (R$ x Taxa)</h2>
+            <span className="text-xs font-medium bg-slate-100 text-slate-600 px-3 py-1 rounded-full">Atualizado agora</span>
+          </div>
+          <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              {/* Mudamos para AreaChart para um visual mais sofisticado e "preenchido" */}
+              <AreaChart data={dadosMaranhao} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorInvestimento" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="municipio" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="investimento_ab_per_capita" 
+                  name="Investimento Per Capita (R$)"
+                  stroke="#2563eb" 
+                  strokeWidth={3}
+                  fillOpacity={1} 
+                  fill="url(#colorInvestimento)" 
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
 
-      {/* Área do Mapa Cartográfico MOVIDA PARA DENTRO DA DIV PAI */}
-      <div className="mt-8 rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-        <h2 className="mb-6 text-xl font-semibold text-gray-800">
-          Distribuição Espacial de Internações Sensíveis à AP
-        </h2>
-        <MapaEpiDinamico />
-      </div>
-
-    </div> // FIM DA DIV PAI PRINCIPAL
+        {/* Bloco 3: Mapa Cartográfico (Ocupa 4 colunas - lateral direita) */}
+        <motion.div variants={itemVariants} className="md:col-span-4 rounded-2xl bg-white p-1 shadow-sm border border-slate-200 hover:shadow-md transition-shadow flex flex-col">
+          <div className="p-5 pb-2">
+            <h2 className="text-lg font-semibold text-slate-800">Distribuição Espacial</h2>
+            <p className="text-xs text-slate-500">Mapeamento de calor por município</p>
+          </div>
+          <div className="flex-1 rounded-xl overflow-hidden m-2">
+            <MapaEpiDinamico />
+          </div>
+        </motion.div>
+      </motion.div>
+    </div>
   );
 }
