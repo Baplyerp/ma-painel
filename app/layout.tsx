@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import Sidebar from "./components/Sidebar";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SIISP - Dashboard de Saúde",
-  description: "Análise de dados e gestão da informação",
+  title: "SIISP - Estado do Maranhão",
+  description: "Sistema Integrado de Inteligência em Saúde Pública",
   manifest: "/manifest.json",
-  themeColor: "#005baa",
+  themeColor: "#0f172a", // Cor alinhada com a sidebar escura
 };
 
 export default function RootLayout({
@@ -18,7 +19,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={inter.className}>{children}</body>
+      <body className={`${inter.className} flex h-screen overflow-hidden bg-gray-50`}>
+        {/* Sidebar Fixa na Esquerda */}
+        <Sidebar />
+        
+        {/* Área Principal de Conteúdo (onde as páginas renderizam) */}
+        <main className="flex-1 overflow-y-auto">
+          {children}
+        </main>
+      </body>
     </html>
   );
 }
