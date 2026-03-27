@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion, Variants } from "framer-motion";
 import { 
   CircleDollarSign, 
@@ -23,29 +24,21 @@ import {
   Scatter,
   ZAxis
 } from "recharts";
+import { supabase } from "../../lib/supabase";
 
-// --- DADOS SIMULADOS PARA ECONOMETRIA ---
+// Tipagens
+type DiDData = {
+  ano: number;
+  tratamento: number;
+  controle: number;
+};
 
-// Dados para Diferenças-em-Diferenças (DiD)
-// Simula o impacto de um "Novo Financiamento APS" iniciado em 2024
-const dadosDiD = [
-  { ano: 2022, tratamento: 22.5, controle: 22.1 },
-  { ano: 2023, tratamento: 23.0, controle: 22.8 },
-  // 2024: Início da Intervenção (A linha de tratamento deve cair, a de controle segue a tendência)
-  { ano: 2024, tratamento: 18.2, controle: 23.1 },
-  { ano: 2025, tratamento: 15.8, controle: 22.9 },
-  { ano: 2026, tratamento: 14.5, controle: 23.2 },
-];
-
-// Dados para Fronteira de Eficiência (Custo Efetividade)
-// Cada ponto é um município ou região de saúde
-const dadosEficiencia = [
-  { municipio: "Região A", custo_per_capita: 450, indice_eficiencia: 0.85, populacao: 500000 },
-  { municipio: "Região B", custo_per_capita: 320, indice_eficiencia: 0.65, populacao: 300000 },
-  { municipio: "Região C", custo_per_capita: 800, indice_eficiencia: 0.90, populacao: 150000 },
-  { municipio: "Região D", custo_per_capita: 410, indice_eficiencia: 0.88, populacao: 1000000 }, // Alta eficiência, custo médio
-  { municipio: "Região E", custo_per_capita: 600, indice_eficiencia: 0.70, populacao: 250000 }, // Baixa eficiência, custo alto
-];
+type EficienciaData = {
+  municipio: string;
+  custo_per_capita: number;
+  indice_eficiencia: number;
+  populacao: number;
+};
 
 // Custom Tooltip para o Gráfico de Dispersão
 const ScatterTooltip = ({ active, payload }: any) => {
@@ -63,7 +56,7 @@ const ScatterTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-// --- ANIMAÇÕES ---
+// Animações
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.15 } },
@@ -75,8 +68,43 @@ const itemVariants: Variants = {
 };
 
 export default function EconomiaSaudePage() {
+  const [dadosDiD, setDadosDiD] = useState<DiDData[]>([]);
+  const [dadosEficiencia, setDadosEficiencia] = useState<EficienciaData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchEconomiaDados = async () => {
+      setLoading(true);
+      try {
+        // Busca paralela para otimizar o tempo de carregamento
+        const [resDiD, resEficiencia] = await Promise.all([
+          supabase.from('economia_did').select('*').order('ano', { ascending: true }),
+          supabase.from('economia_eficiencia').select('*').order('indice_eficiencia', { ascending: false })
+        ]);
+
+        if (resDiD.data) setDadosDiD(resDiD.data);
+        if (resEficiencia.data) setDadosEficiencia(resEficiencia.data);
+
+      } catch (error) {
+        console.error("Erro ao buscar dados de economia:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEconomiaDados();
+  }, []);
+
   return (
-    <div className="min-h-screen bg-slate-50 p-8 overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 p-8 overflow-x-hidden relative">
+      
+      {/* Indicador de Carregamento */}
+      {loading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-50/60 backdrop-blur-sm">
+           <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent"></div>
+        </div>
+      )}
+
       <motion.header 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -128,8 +156,10 @@ export default function EconomiaSaudePage() {
           <div className="flex items-center gap-4">
             <div className="rounded-xl bg-indigo-50 text-indigo-600 p-4"><Scale size={28} /></div>
             <div>
-              <p className="text-xs font-medium text-slate-500">Índice de Eficiência Global</p>
-              <p className="text-2xl font-bold text-slate-900 mt-1">0.84</p>
+              <p className="text-xs font-medium text-slate-500">Eficiência Média (Amostra)</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">
+                {dadosEficiencia.length > 0 ? (dadosEficiencia.reduce((acc, curr) => acc + curr.indice_eficiencia, 0) / dadosEficiencia.length).toFixed(2) : 0}
+              </p>
             </div>
           </div>
         </motion.div>
@@ -144,7 +174,7 @@ export default function EconomiaSaudePage() {
           </div>
         </motion.div>
 
-        {/* Modelo DiD (Ocupa 8 colunas) */}
+        {/* Modelo DiD */}
         <motion.div variants={itemVariants} className="md:col-span-8 rounded-2xl bg-white p-6 shadow-sm border border-slate-200 flex flex-col min-h-[420px]">
           <div className="mb-6 flex justify-between items-start">
             <div>
@@ -161,7 +191,6 @@ export default function EconomiaSaudePage() {
                 <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                 <Legend verticalAlign="top" height={36} iconType="circle" />
                 
-                {/* A linha de intervenção que mostra o exato momento da política pública */}
                 <ReferenceLine x={2024} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'Intervenção', fill: '#ef4444', fontSize: 12 }} />
                 
                 <Line type="monotone" dataKey="controle" name="Grupo Controlo (Sem Política)" stroke="#94a3b8" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
@@ -171,7 +200,7 @@ export default function EconomiaSaudePage() {
           </div>
         </motion.div>
 
-        {/* Gráfico de Dispersão Custo-Efetividade (Ocupa 4 colunas) */}
+        {/* Gráfico de Dispersão Custo-Efetividade */}
         <motion.div variants={itemVariants} className="md:col-span-4 rounded-2xl bg-white p-6 shadow-sm border border-slate-200 flex flex-col min-h-[420px]">
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-slate-800">Fronteira de Eficiência</h2>
@@ -183,12 +212,10 @@ export default function EconomiaSaudePage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis type="number" dataKey="custo_per_capita" name="Custo (R$)" tick={{fill: '#64748b'}} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
                 <YAxis type="number" dataKey="indice_eficiencia" name="Eficiência" tick={{fill: '#64748b'}} axisLine={false} tickLine={false} domain={[0.5, 1]} />
-                {/* ZAxis controla o tamanho das bolhas baseado na população */}
                 <ZAxis type="number" dataKey="populacao" range={[100, 600]} name="População" />
                 <Tooltip cursor={{ strokeDasharray: '3 3' }} content={<ScatterTooltip />} />
                 <Scatter name="Regiões" data={dadosEficiencia} fill="#6366f1" fillOpacity={0.7} />
                 
-                {/* Linha que representa uma meta média de custo */}
                 <ReferenceLine x={500} stroke="#cbd5e1" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'Custo Médio', fill: '#94a3b8', fontSize: 10 }} />
               </ScatterChart>
             </ResponsiveContainer>
